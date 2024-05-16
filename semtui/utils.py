@@ -263,6 +263,30 @@ def get_table(dataset_id, table_id, token_manager):
         print(f"Error occurred while retrieving the table data: {e}")
         return None
 
+def get_dataset_tables(dataset_id, token_manager):
+    """
+    Retrieves the list of tables for a given dataset.
+    
+    Args:
+        dataset_id (str): The ID of the dataset.
+        token_manager (TokenManager): An instance of the TokenManager class.
+    
+    Returns:
+        list: A list of tables in the dataset.
+    """
+    try:
+        url = f"{API_URL}{DATASETS_ENDPOINT}{dataset_id}/table"
+        headers = {
+            "accept": "application/json",
+            "authorization": f"Bearer {token_manager.get_token()}"
+        }
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an exception if the request was not successful
+        return response.json().get("collection", [])
+    except (requests.RequestException, json.JSONDecodeError, KeyError) as e:
+        print(f"Error getting dataset tables: {e}")
+        return []
+
 def getReconciliatorData():
     """
     Retrieves reconciliator data from the backend
@@ -830,40 +854,48 @@ def addExtendedColumns(table, extensionData, newColumnsName, reconciliatorRespon
         
     return table
 
-def update_table(dataset_id, table_id, update_payload, headers):
+def update_table(dataset_id, table_name, update_payload, token_manager):
     """
-    Function that sends a PUT request to update a table in a dataset.
-
-    This function takes the dataset ID, table ID, update payload, and headers as input, and sends a PUT request to the
-    API to update the table. The function prints the response status code and response data, or an error message if the
-    update fails.
-
+    Updates a table in a specific dataset.
+    
     Args:
-        dataset_id (str): ID of the dataset containing the table.
-        table_id (str): ID of the table to update.
-        update_payload (dict): Payload containing the updated table data.
-        headers (dict): Headers to include in the PUT request.
-
+        dataset_id (str): The ID of the dataset.
+        table_name (str): The name of the table to update.
+        update_payload (dict): The payload containing the updated table data.
+        token_manager (TokenManager): An instance of the TokenManager class.
+    
     Returns:
         None
     """
-    url = f"{API_URL}{DATASETS_ENDPOINT}{dataset_id}/table/{table_id}"
-
-    try:
-        # Send the PUT request to update the table
-        response = requests.put(url, headers=headers, json=update_payload)
-
-        if response.status_code == 200:
-            print("Table updated successfully!")
-            response_data = response.json()
-            print("Response data:", response_data)
-        elif response.status_code == 401:
-            print("Unauthorized: Invalid or missing token.")
-        elif response.status_code == 404:
-            print(f"Dataset or table with ID {dataset_id}/{table_id} not found.")
-        else:
-            print(f"Failed to update table: {response.status_code}, {response.text}")
-    except requests.exceptions.RequestException as e:
-        print(f"Error occurred while updating table: {e}")
+    tables = get_dataset_tables(dataset_id, token_manager)
+    
+    for table in tables:
+        if table["name"] == table_name:
+            table_id = table["id"]
+            url = f"{API_URL}{DATASETS_ENDPOINT}{dataset_id}/table/{table_id}"
+            headers = {
+                "Authorization": f"Bearer {token_manager.get_token()}",
+                "Content-Type": "application/json"
+            }
+            
+            try:
+                response = requests.put(url, headers=headers, json=update_payload)
+                
+                if response.status_code == 200:
+                    print("Table updated successfully!")
+                    response_data = response.json()
+                    print("Response data:", response_data)
+                elif response.status_code == 401:
+                    print("Unauthorized: Invalid or missing token.")
+                elif response.status_code == 404:
+                    print(f"Dataset or table with ID {dataset_id}/{table_id} not found.")
+                else:
+                    print(f"Failed to update table: {response.status_code}, {response.text}")
+            except requests.exceptions.RequestException as e:
+                print(f"Error occurred while updating table: {e}")
+            
+            return
+    
+    print(f"Table '{table_name}' not found in the dataset.")
 
 

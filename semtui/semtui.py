@@ -10,7 +10,7 @@ from .utils import (TokenManager, FileReader, FileSaver, create_zip_file, get_da
                     cleanServiceList, getReconciliatorData, getExtenderData, getReconciliator,
                     createReconciliationPayload, updateMetadataTable, createCellMetadataNameField,
                     updateMetadataCells, updateMetadataColumn, getExtender, createExtensionPayload,
-                    parseNameField, createCellMetadataNameField, calculateScoreBoundCell, 
+                    parseNameField, createCellMetadataNameField, get_dataset_tables, calculateScoreBoundCell, 
                     valueMatchCell, createAnnotationMetaCell, updateMetadataCells, 
                     calculateNCellsReconciliatedColumn, createContextColumn, getColumnMetadata, 
                     createMetadataFieldColumn, calculateScoreBoundColumn, createAnnotationMetaColumn, 
@@ -156,17 +156,171 @@ def get_table_by_name(dataset_id, table_name, token_manager):
         token_manager (TokenManager): An instance of the TokenManager class.
     
     Returns:
-        dict: The table data in JSON format.
+        dict: The table data in JSON format, including the table_id.
     """
     tables = get_dataset_tables(dataset_id, token_manager)
     
     for table in tables:
         if table["name"] == table_name:
             table_id = table["id"]
-            return get_table(dataset_id, table_id, token_manager)
+            table_data = get_table(dataset_id, table_id, token_manager)
+            if table_data:
+                table_data["id"] = table_id  # Ensure the ID is included in the returned data
+                return table_data
     
     print(f"Table '{table_name}' not found in the dataset.")
     return None
+
+def delete_table(dataset_id, table_name, token_manager):
+    """
+    Deletes a table by its name from a specific dataset.
+    
+    Args:
+        dataset_id (str): The ID of the dataset.
+        table_name (str): The name of the table to delete.
+        token_manager (TokenManager): An instance of the TokenManager class.
+    """
+    table = get_table_by_name(dataset_id, table_name, token_manager)
+    if not table:
+        return
+    
+    table_id = table.get("id")
+    if not table_id:
+        print(f"Failed to retrieve the ID for table '{table_name}'.")
+        return
+    
+    url = f"{API_URL}{DATASETS_ENDPOINT}{dataset_id}/table/{table_id}"
+    headers = {
+        'Authorization': f'Bearer {token_manager.get_token()}',
+        'Accept': 'application/json'
+    }
+    
+    response = requests.delete(url, headers=headers)
+    
+    if response.status_code == 200:
+        print(f"Table '{table_name}' deleted successfully!")
+    elif response.status_code == 401:
+        print("Unauthorized: Invalid or missing token.")
+    elif response.status_code == 404:
+        print(f"Table '{table_name}' not found in the dataset.")
+    else:
+        print(f"Failed to delete table: {response.status_code}, {response.text}")
+
+def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager):
+    """
+    Adds a table to a specific dataset.
+    
+    Args:
+        dataset_id (str): The ID of the dataset.
+        table_file_path (str): The file path of the table to be added.
+        table_name (str): The name of the table to be added.
+        token_manager (TokenManager): An instance of the TokenManager class.
+    """
+    url = f"{API_URL}{DATASETS_ENDPOINT}{dataset_id}/table"
+    
+    token = token_manager.get_token()
+    
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Accept': 'application/json'
+    }
+    
+    try:
+        with open(table_file_path, 'rb') as file:
+            files = {
+                'file': (file.name, file, 'text/csv')
+            }
+            
+            data = {
+                'name': table_name
+            }
+            
+            response = requests.post(url, headers=headers, data=data, files=files, timeout=30)
+        
+        if response.status_code in [200, 201]:
+            print("Table added successfully!")
+            response_data = response.json()
+            if 'tables' in response_data:
+                tables = response_data['tables']
+                for table in tables:
+                    table_id = table['id']
+                    table_name = table['name']
+                    print(f"New table added: ID: {table_id}, Name: {table_name}")
+            else:
+                print("Response JSON does not contain 'tables' key.")
+        else:
+            print(f"Failed to add table: {response.status_code}, {response.text}")
+    except requests.RequestException as e:
+        print(f"Request error occurred: {e}")
+    except IOError as e:
+        print(f"File I/O error occurred: {e}")
+
+def update_table(dataset_id, table_name, update_payload, token_manager):
+    """
+    Updates a table in a specific dataset.
+    
+    Args:
+        dataset_id (str): The ID of the dataset.
+        table_name (str): The name of the table to update.
+        update_payload (dict): The payload containing the updated table data.
+        token_manager (TokenManager): An instance of the TokenManager class.
+    
+    Returns:
+        None
+    """
+    tables = get_dataset_tables(dataset_id, token_manager)
+    
+    for table in tables:
+        if table["name"] == table_name:
+            table_id = table["id"]
+            url = f"{API_URL}{DATASETS_ENDPOINT}{dataset_id}/table/{table_id}"
+            headers = {
+                "Authorization": f"Bearer {token_manager.get_token()}",
+                "Content-Type": "application/json"
+            }
+            
+            try:
+                response = requests.put(url, headers=headers, json=update_payload)
+                
+                if response.status_code == 200:
+                    print("Table updated successfully!")
+                    response_data = response.json()
+                    print("Response data:", response_data)
+                elif response.status_code == 401:
+                    print("Unauthorized: Invalid or missing token.")
+                elif response.status_code == 404:
+                    print(f"Dataset or table with ID {dataset_id}/{table_id} not found.")
+                else:
+                    print(f"Failed to update table: {response.status_code}, {response.text}")
+            except requests.exceptions.RequestException as e:
+                print(f"Error occurred while updating table: {e}")
+            
+            return
+    
+    print(f"Table '{table_name}' not found in the dataset.")
+
+def list_tables_in_dataset(dataset_id, token_manager):
+    """
+    Lists all tables in a specific dataset.
+    
+    Args:
+        dataset_id (str): The ID of the dataset.
+        token_manager (TokenManager): An instance of the TokenManager class.
+    """
+    tables = get_dataset_tables(dataset_id, token_manager)
+    
+    if not tables:
+        print(f"No tables found in dataset with ID: {dataset_id}")
+        return
+    
+    print(f"Tables in dataset {dataset_id}:")
+    for table in tables:
+        table_id = table.get('id')
+        table_name = table.get('name')
+        if table_id and table_name:
+            print(f"ID: {table_id}, Name: {table_name}")
+        else:
+            print("A table with missing ID or name was found.")
 
 def getReconciliatorsList():
     """
@@ -316,20 +470,36 @@ def extendColumn(table, reconciliatedColumnName, idExtender, properties, newColu
     except KeyError as e:
         print(f"Missing expected key in data:", e)
 
+def create_reconciliation_payload_for_backend(table_json):
+    """
+    Creates the payload required to perform the table update operation
+
+    :param table_json: JSON representation of the table
+    :return: request payload
+    """
+    payload = {
+        "tableInstance": {
+            "id": table_json["raw"]["table"]["id"],
+            "idDataset": table_json["raw"]["table"]["idDataset"],
+            "name": table_json["raw"]["table"]["name"],
+            "nCols": table_json["raw"]["table"]["nCols"],
+            "nRows": table_json["raw"]["table"]["nRows"],
+            "nCells": table_json["raw"]["table"]["nCells"],
+            "nCellsReconciliated": table_json["raw"]["table"]["nCellsReconciliated"],
+            "lastModifiedDate": table_json["raw"]["table"]["lastModifiedDate"]
+        },
+        "columns": {
+            "byId": table_json["raw"]["columns"],
+            "allIds": list(table_json["raw"]["columns"].keys())
+        },
+        "rows": {
+            "byId": table_json["raw"]["rows"],
+            "allIds": list(table_json["raw"]["rows"].keys())
+        }
+    }
+    return payload
+
 def create_extension_payload_for_backend(table_json):
-    """
-    Function that creates the payload required to perform the table update operation.
-
-    This function takes a JSON representation of a table and creates a payload required to perform the table update
-    operation. The payload includes the table instance data, column data, and row data. The function processes the
-    columns and rows in the table and adds them to the payload. The function returns the payload.
-
-    Args:
-        table_json (dict): JSON representation of the table.
-
-    Returns:
-        dict: Request payload.
-    """
     payload = {
         "tableInstance": {
             "id": table_json["table"]["id"],
@@ -358,9 +528,9 @@ def create_extension_payload_for_backend(table_json):
         payload["columns"]["byId"][column_id] = {
             "id": column_data["id"],
             "label": column_data["label"],
-            "status": column_data["status"],
-            "context": column_data["context"],
-            "metadata": column_data["metadata"],
+            "status": column_data.get("status", ""),
+            "context": column_data.get("context", {}),
+            "metadata": column_data.get("metadata", []),
             "annotationMeta": column_data.get("annotationMeta", {})
         }
         payload["columns"]["allIds"].append(column_id)
@@ -374,41 +544,12 @@ def create_extension_payload_for_backend(table_json):
         for cell_id, cell_data in row_data["cells"].items():
             payload["rows"]["byId"][row_id]["cells"][cell_id] = {
                 "id": cell_data["id"],
-                "label": cell_data["label"],
-                "metadata": cell_data["metadata"],
+                "label": cell_data.get("label", ""),
+                "metadata": cell_data.get("metadata", []),
                 "annotationMeta": cell_data.get("annotationMeta", {})
             }
         payload["rows"]["allIds"].append(row_id)
 
-    return payload
-
-def create_reconciliation_payload_for_backend(table_json):
-    """
-    Creates the payload required to perform the table update operation
-
-    :param table_json: JSON representation of the table
-    :return: request payload
-    """
-    payload = {
-        "tableInstance": {
-            "id": table_json["table"]["id"],
-            "idDataset": table_json["table"]["idDataset"],
-            "name": table_json["table"]["name"],
-            "nCols": table_json["table"]["nCols"],
-            "nRows": table_json["table"]["nRows"],
-            "nCells": table_json["table"]["nCells"],
-            "nCellsReconciliated": table_json["table"]["nCellsReconciliated"],
-            "lastModifiedDate": table_json["table"]["lastModifiedDate"]
-        },
-        "columns": {
-            "byId": table_json["columns"],
-            "allIds": list(table_json["columns"].keys())
-        },
-        "rows": {
-            "byId": table_json["rows"],
-            "allIds": list(table_json["rows"].keys())
-        }
-    }
     return payload
 
 def load_json_to_dataframe(data):
@@ -455,8 +596,3 @@ def load_json_to_dataframe(data):
     except Exception as e:
         print(f"An error occurred while converting JSON to DataFrame: {str(e)}")
         raise
-
-
-
-
-

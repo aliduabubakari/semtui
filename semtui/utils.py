@@ -210,6 +210,22 @@ def create_zip_file(df, zip_filename):
         os.remove(temp_dir)
         raise e
 
+def create_temp_csv(table_data):
+    """
+    Creates a temporary CSV file from a DataFrame.
+    
+    Args:
+        table_data (DataFrame): The table data to be written to the CSV file.
+        
+    Returns:
+        str: The path of the temporary CSV file.
+    """
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv') as temp_file:
+        table_data.to_csv(temp_file, index=False)
+        temp_file_path = temp_file.name
+    
+    return temp_file_path
+
 def get_dataset_tables(dataset_id, token_manager):
     """
     Retrieves the list of tables for a given dataset.

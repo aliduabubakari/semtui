@@ -263,7 +263,6 @@ def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager)
         if os.path.exists(table_file_path):
             os.remove(table_file_path)
 
-
 def update_table(dataset_id, table_name, update_payload, token_manager):
     """
     Updates a table in a specific dataset.

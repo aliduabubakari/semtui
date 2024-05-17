@@ -7,10 +7,6 @@ setup(
     install_requires=[
         'pandas',
         'requests',  # Add other dependencies as needed
-        'zipfile',
-        'json',
-        'os',
-        'sys',
     ],
     author='Alidu Abubakari',
     author_email='a.abubakari@campus.unimib.it',
@@ -22,6 +18,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Intended Audience :: Developers',
         'Programming Language :: Python :: 3',
-        'Operating System :: Optimized for MacOS Independent',
+        'Operating System :: OS Independent',
     ],
 )

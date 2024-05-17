@@ -207,11 +207,6 @@ def delete_table(dataset_id, table_name, token_manager):
     else:
         print(f"Failed to delete table: {response.status_code}, {response.text}")
 
-import tempfile
-import requests
-import csv
-import os
-
 def add_table_to_dataset(dataset_id, table_data, table_name, token_manager):
     """
     Adds a table to a specific dataset.
@@ -231,12 +226,13 @@ def add_table_to_dataset(dataset_id, table_data, table_name, token_manager):
         'Accept': 'application/json'
     }
     
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv') as temp_file:
+        # Write the DataFrame to the temporary file
+        table_data.to_csv(temp_file, index=False)
+        temp_file_path = temp_file.name
+    
     try:
-        # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv') as temp_file:
-            table_data.to_csv(temp_file, index=False)
-            temp_file_path = temp_file.name
-        
         # Open the temporary file for reading
         with open(temp_file_path, 'rb') as file:
             files = {

@@ -7,7 +7,6 @@ setup(
     install_requires=[
         'pandas',
         'requests',  # Add other dependencies as needed
-        'tempfile', 
         'zipfile',
         'json',
         'os',

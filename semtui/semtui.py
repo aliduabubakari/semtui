@@ -207,13 +207,13 @@ def delete_table(dataset_id, table_name, token_manager):
     else:
         print(f"Failed to delete table: {response.status_code}, {response.text}")
 
-def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager):
+def add_table_to_dataset(dataset_id, table_data, table_name, token_manager):
     """
     Adds a table to a specific dataset.
     
     Args:
         dataset_id (str): The ID of the dataset.
-        table_file_path (str): The path of the CSV file containing the table data.
+        table_data (DataFrame): The table data to be added.
         table_name (str): The name of the table to be added.
         token_manager (TokenManager): An instance of the TokenManager class.
     """
@@ -226,8 +226,11 @@ def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager)
         'Accept': 'application/json'
     }
     
+    # Create a temporary CSV file from the DataFrame
+    temp_file_path = create_temp_csv(table_data)
+    
     try:
-        with open(table_file_path, 'rb') as file:
+        with open(temp_file_path, 'rb') as file:
             files = {
                 'file': (file.name, file, 'text/csv')
             }
@@ -260,8 +263,8 @@ def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager)
     
     finally:
         # Clean up the temporary file
-        if os.path.exists(table_file_path):
-            os.remove(table_file_path)
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 
 def update_table(dataset_id, table_name, update_payload, token_manager):
     """

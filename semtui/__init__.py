@@ -23,7 +23,7 @@ from .utils import (
 
 # Define what should be accessible when importing the package
 __all__ = [
-    'obtain_auth_token', 'process_csv_data', 'add_dataset', 'get_database_list', 
+    'obtain_auth_token', 'process_csv_data', 'add_dataset', 'get_database_list', 'create_temp_csv', 
     'get_table_by_name', 'getReconciliatorsList', 'getExtendersList', 'reconcile',
     'extract_georeference_data', 'extract_city_reconciliation_metrics', 'extendColumn', 
     'create_extension_payload_for_backend', 'create_reconciliation_payload_for_backend', 

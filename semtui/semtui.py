@@ -7,7 +7,7 @@ import json
 import pandas as pd
 
 # Correct the import statement in semtui.py
-from .utils import (TokenManager, FileReader, FileSaver, create_zip_file, get_dataset_tables, get_table, process_data, 
+from .utils import (TokenManager, FileReader, FileSaver, create_zip_file, create_temp_csv, get_dataset_tables, get_table, process_data, 
                     cleanServiceList, getReconciliatorData, getExtenderData, getReconciliator,
                     createReconciliationPayload, updateMetadataTable, createCellMetadataNameField,
                     updateMetadataCells, updateMetadataColumn, getExtender, createExtensionPayload,
@@ -207,13 +207,13 @@ def delete_table(dataset_id, table_name, token_manager):
     else:
         print(f"Failed to delete table: {response.status_code}, {response.text}")
 
-def add_table_to_dataset(dataset_id, table_data, table_name, token_manager):
+def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager):
     """
     Adds a table to a specific dataset.
     
     Args:
         dataset_id (str): The ID of the dataset.
-        table_data (DataFrame): The table data to be added.
+        table_file_path (str): The path of the CSV file containing the table data.
         table_name (str): The name of the table to be added.
         token_manager (TokenManager): An instance of the TokenManager class.
     """
@@ -226,15 +226,8 @@ def add_table_to_dataset(dataset_id, table_data, table_name, token_manager):
         'Accept': 'application/json'
     }
     
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv') as temp_file:
-        # Write the DataFrame to the temporary file
-        table_data.to_csv(temp_file, index=False)
-        temp_file_path = temp_file.name
-    
     try:
-        # Open the temporary file for reading
-        with open(temp_file_path, 'rb') as file:
+        with open(table_file_path, 'rb') as file:
             files = {
                 'file': (file.name, file, 'text/csv')
             }
@@ -267,8 +260,9 @@ def add_table_to_dataset(dataset_id, table_data, table_name, token_manager):
     
     finally:
         # Clean up the temporary file
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
+        if os.path.exists(table_file_path):
+            os.remove(table_file_path)
+
 
 def update_table(dataset_id, table_name, update_payload, token_manager):
     """

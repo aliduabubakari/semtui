@@ -1,4 +1,5 @@
 import os
+import csv
 import tempfile
 import zipfile
 import requests
@@ -206,13 +207,13 @@ def delete_table(dataset_id, table_name, token_manager):
     else:
         print(f"Failed to delete table: {response.status_code}, {response.text}")
 
-def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager):
+def add_table_to_dataset(dataset_id, table_data, table_name, token_manager):
     """
     Adds a table to a specific dataset.
     
     Args:
         dataset_id (str): The ID of the dataset.
-        table_file_path (str): The file path of the table to be added.
+        table_data (list of dict): The table data to be added.
         table_name (str): The name of the table to be added.
         token_manager (TokenManager): An instance of the TokenManager class.
     """
@@ -226,7 +227,15 @@ def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager)
     }
     
     try:
-        with open(table_file_path, 'rb') as file:
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.csv') as temp_file:
+            writer = csv.DictWriter(temp_file, fieldnames=table_data[0].keys())
+            writer.writeheader()
+            writer.writerows(table_data)
+            temp_file_path = temp_file.name
+        
+        # Open the temporary file for reading
+        with open(temp_file_path, 'rb') as file:
             files = {
                 'file': (file.name, file, 'text/csv')
             }
@@ -250,10 +259,17 @@ def add_table_to_dataset(dataset_id, table_file_path, table_name, token_manager)
                 print("Response JSON does not contain 'tables' key.")
         else:
             print(f"Failed to add table: {response.status_code}, {response.text}")
+    
     except requests.RequestException as e:
         print(f"Request error occurred: {e}")
+    
     except IOError as e:
         print(f"File I/O error occurred: {e}")
+    
+    finally:
+        # Clean up the temporary file
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 
 def update_table(dataset_id, table_name, update_payload, token_manager):
     """

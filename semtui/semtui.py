@@ -577,19 +577,18 @@ def generateExtendColumnGuide(idExtender):
     guide.append("update_payload = Reconciled_data['raw']  # Your reconciled data")
     guide.append('reconciliatedColumnName = "City"  # The name of the reconciled column')
     guide.append(f'idExtender = "{idExtender}"  # The ID of the extender to use')
-    guide.append("newColumnsName = [\"apparent_temperature_max\", \"apparent_temperature_min\", \"precipitation_sum\"]  # New columns names")
+    guide.append('newColumnsName = ["apparent_temperature_max", "apparent_temperature_min", "precipitation_sum"]  # New columns names')
     guide.append('dateColumnName = "Fecha_id"  # Column name for the date')
     guide.append('weatherParams = ["apparent_temperature_max", "apparent_temperature_min", "precipitation_sum"]  # Weather parameters')
     guide.append("")
-
-    # Add mandatory parameters
     guide.append("# Mandatory parameters:")
     guide.append("New_data = extendColumn(update_payload, reconciliatedColumnName, idExtender,")
+
     for param in parameters_info['mandatory']:
         guide.append(f"    {param['name']}={param['name']},  # {param['description']}")
+    
     guide.append(")")
 
-    # Add optional parameters
     if parameters_info['optional']:
         guide.append("")
         guide.append("# Optional parameters (add as needed):")
@@ -855,6 +854,50 @@ def evaluate_reconciliation(data, reconciliatedColumnName):
     metrics_df = pd.DataFrame(metrics)
 
     return metrics_df
+
+def extend_Reconciliation_Results(data, reconciliatedColumnName, properties, newColumnsName):
+    """
+    Extends the reconciled column by creating new columns for each property in the metadata.
+
+    :param data: the table containing the data
+    :param reconciliatedColumnName: the column containing the reconciled data
+    :param properties: the properties to extend in the table
+    :param newColumnsName: the names of the new columns to add
+    :return: the extended data as a DataFrame
+    """
+    if len(properties) != len(newColumnsName):
+        raise ValueError("The number of properties and new column names should be the same.")
+    
+    # Initialize a list to store the extracted data
+    extracted_data = []
+
+    # Iterate through each row
+    for row_id, row_data in data['raw']['rows'].items():
+        row_dict = {}
+        row_dict['row_id'] = row_id
+        
+        # Iterate through each cell in the row
+        for cell_id, cell_data in row_data['cells'].items():
+            cell_label = cell_data.get('label')
+            metadata_list = cell_data.get('metadata', [])
+            
+            # If metadata is not empty, process it
+            if metadata_list:
+                for metadata in metadata_list:
+                    if metadata.get('match'):
+                        # Extract metadata details
+                        for prop, newCol in zip(properties, newColumnsName):
+                            row_dict[newCol] = metadata.get(prop, '')
+            else:
+                # If no metadata, just add the cell label
+                row_dict[cell_id] = cell_label
+        
+        extracted_data.append(row_dict)
+
+    # Create a DataFrame from the extracted data
+    df = pd.DataFrame(extracted_data)
+    
+    return df
 
 def extract_nested_values_reconciliation(df, column, new_columns):
     """

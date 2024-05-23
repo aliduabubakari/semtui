@@ -1,5 +1,3 @@
-# SEMT-py/semtui/__init__.py
-
 # Import key classes and functions from the modules to make them
 # available at the package level
 from .semtui import (
@@ -32,7 +30,6 @@ from .semtui import (
     create_extension_payload_for_backend,
     load_json_to_dataframe
 )
-
 
 from .utils import (
     TokenManager,
@@ -73,10 +70,8 @@ from .utils import (
     addExtendedCell,
     addExtendedColumns,
     parseNameMetadata,
-    addExtendedColumns,  # Note: This is duplicated, you might want to remove one
     update_table
 )
-
 
 # Define what should be accessible when importing the package
 __all__ = [
@@ -144,7 +139,9 @@ __all__ = [
     'addExtendedCell',
     'addExtendedColumns',
     'parseNameMetadata',
-    'update_table'
+    'update_table',
+    'extend_Reconciliation_Results',  # Ensure this line is present in __all__
+    'reconciled_table_update'  # Ensure this line is also present in __all__
 ]
 
 # Optional: Initialize anything that needs to be set up when the package is loaded

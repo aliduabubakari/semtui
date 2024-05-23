@@ -27,6 +27,9 @@ from .semtui import (
     create_reconciliation_payload_for_backend,
     evaluate_reconciliation,
     extract_nested_values_reconciliation,
+    extend_Reconciliation_Results,
+    extend_Reconciliation_Results, 
+    reconciled_table_update, 
     create_extension_payload_for_backend,
     load_json_to_dataframe
 )

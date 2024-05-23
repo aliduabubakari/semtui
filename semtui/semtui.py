@@ -6,17 +6,49 @@ import requests
 import json
 import pandas as pd
 
-# Correct the import statement in semtui.py
-from .utils import (TokenManager, FileReader, FileSaver, create_zip_file, create_temp_csv, get_dataset_tables, get_table, process_data, 
-                    cleanServiceList, getReconciliatorData, getExtenderData, getReconciliator,
-                    createReconciliationPayload, updateMetadataTable, createCellMetadataNameField,
-                    updateMetadataCells, updateMetadataColumn, getExtender, createExtensionPayload,
-                    parseNameField, createCellMetadataNameField, get_dataset_tables, calculateScoreBoundCell, 
-                    valueMatchCell, createAnnotationMetaCell, updateMetadataCells, 
-                    calculateNCellsReconciliatedColumn, createContextColumn, getColumnMetadata, 
-                    createMetadataFieldColumn, calculateScoreBoundColumn, createAnnotationMetaColumn, 
-                    updateMetadataColumn, calculateScoreBoundTable, calculateNCellsReconciliated, 
-                    updateMetadataTable, addExtendedColumns, update_table)
+
+from .utils import (
+    TokenManager,
+    FileReader,
+    FileSaver,
+    create_zip_file,
+    create_temp_csv,
+    get_dataset_tables,
+    get_table,
+    get_dataset_tables,
+    getReconciliatorData,
+    cleanServiceList,
+    getExtenderData,
+    getReconciliator,
+    createReconciliationPayload,
+    parseNameField,
+    createCellMetadataNameField,
+    calculateScoreBoundCell,
+    valueMatchCell,
+    createAnnotationMetaCell,
+    updateMetadataCells,
+    calculateNCellsReconciliatedColumn,
+    createContextColumn,
+    getColumnMetadata,
+    createMetadataFieldColumn,
+    calculateScoreBoundColumn,
+    createAnnotationMetaColumn,
+    updateMetadataColumn,
+    calculateScoreBoundTable,
+    calculateNCellsReconciliated,
+    updateMetadataTable,
+    getExtender,
+    createExtensionPayload,
+    getReconciliatorFromPrefix,
+    getColumnIdReconciliator,
+    checkEntity,
+    parseNameEntities,
+    addExtendedCell,
+    addExtendedColumns,
+    parseNameMetadata,
+    addExtendedColumns, 
+    update_table
+)
 
 API_URL = "http://localhost:3003/api/"
 SIGNIN_ENDPOINT = "auth/signin"
@@ -40,6 +72,37 @@ def process_csv_data(file_path):
         return df
     except Exception as e:
         print(f"An error occurred while processing the CSV file: {e}")
+
+def process_data(df, date_col=None, lowercase_col=None, dropna=False, column_rename_dict=None, dtype_dict=None, new_column_order=None):
+    # If a date column is specified, convert it to ISO format
+    if date_col:
+        df[date_col] = pd.to_datetime(df[date_col], format='%Y%m%d')
+        df[date_col] = df[date_col].dt.strftime('%Y-%m-%d')
+
+    # If a column for lowercase conversion is specified, convert it
+    if lowercase_col:
+        df[lowercase_col] = df[lowercase_col].str.lower()
+
+    # If dropna is True, drop null values
+    if dropna:
+        df.dropna(inplace=True)
+
+    # Rename columns if column_rename_dict is provided
+    if column_rename_dict:
+        df = df.rename(columns=column_rename_dict)
+
+    # Convert data types if dtype_dict is provided
+    if dtype_dict:
+        for col, dtype in dtype_dict.items():
+            df[col] = df[col].astype(dtype)
+
+    # Reorder columns if new_column_order is provided
+    if new_column_order:
+        df = df[new_column_order]
+
+    # Add more transformations as needed
+
+    return df
 
 def add_dataset(token_manager, zip_file_path, dataset_name):
     """
@@ -377,6 +440,212 @@ def reconcile(table, columnName, idReconciliator):
     table = updateMetadataTable(table)
     return {'raw': table}
 
+def getReconciliatorParameters(idReconciliator, print_params=False):
+    """
+    Retrieves the parameters needed for a specific reconciliator service.
+
+    :param idReconciliator: the ID of the reconciliator service
+    :param print_params: (optional) whether to print the retrieved parameters or not
+    :return: a dictionary containing the parameter details
+    """
+    mandatory_params = [
+        {'name': 'table', 'type': 'json', 'mandatory': True, 'description': 'The table data in JSON format'},
+        {'name': 'columnName', 'type': 'string', 'mandatory': True, 'description': 'The name of the column to reconcile'},
+        {'name': 'idReconciliator', 'type': 'string', 'mandatory': True, 'description': 'The ID of the reconciliator to use'}
+    ]
+    
+    reconciliatorData = getReconciliatorData()
+    for reconciliator in reconciliatorData:
+        if reconciliator['id'] == idReconciliator:
+            parameters = reconciliator.get('formParams', [])
+            optional_params = [
+                {
+                    'name': param['id'],
+                    'type': param['inputType'],
+                    'mandatory': 'required' in param.get('rules', []),
+                    'description': param.get('description', ''),
+                    'label': param.get('label', ''),
+                    'infoText': param.get('infoText', '')
+                } for param in parameters
+            ]
+
+            param_dict = {
+                'mandatory': mandatory_params,
+                'optional': optional_params
+            }
+
+            if print_params:
+                print(f"Parameters for reconciliator '{idReconciliator}':")
+                print("Mandatory parameters:")
+                for param in param_dict['mandatory']:
+                    print(f"- {param['name']} ({param['type']}): Mandatory")
+                    print(f"  Description: {param['description']}")
+                
+                print("\nOptional parameters:")
+                for param in param_dict['optional']:
+                    mandatory = "Mandatory" if param['mandatory'] else "Optional"
+                    print(f"- {param['name']} ({param['type']}): {mandatory}")
+                    print(f"  Description: {param['description']}")
+                    print(f"  Label: {param['label']}")
+                    print(f"  Info Text: {param['infoText']}")
+
+            return param_dict
+
+    return None
+
+def getExtenderParameters(idExtender, print_params=False):
+    """
+    Retrieves the parameters needed for a specific extender service.
+
+    :param idExtender: the ID of the extender service
+    :param print_params: (optional) whether to print the retrieved parameters or not
+    :return: a dictionary containing the parameter details
+    """
+    extenderData = getExtenderData()
+    for extender in extenderData:
+        if extender['id'] == idExtender:
+            parameters = extender.get('formParams', [])
+            mandatory_params = [
+                {
+                    'name': param['id'],
+                    'type': param['inputType'],
+                    'mandatory': 'required' in param.get('rules', []),
+                    'description': param.get('description', ''),
+                    'label': param.get('label', ''),
+                    'infoText': param.get('infoText', ''),
+                    'options': param.get('options', [])
+                } for param in parameters if 'required' in param.get('rules', [])
+            ]
+            optional_params = [
+                {
+                    'name': param['id'],
+                    'type': param['inputType'],
+                    'mandatory': 'required' in param.get('rules', []),
+                    'description': param.get('description', ''),
+                    'label': param.get('label', ''),
+                    'infoText': param.get('infoText', ''),
+                    'options': param.get('options', [])
+                } for param in parameters if 'required' not in param.get('rules', [])
+            ]
+
+            param_dict = {
+                'mandatory': mandatory_params,
+                'optional': optional_params
+            }
+
+            if print_params:
+                print(f"Parameters for extender '{idExtender}':")
+                print("Mandatory parameters:")
+                for param in param_dict['mandatory']:
+                    print(f"- {param['name']} ({param['type']}): Mandatory")
+                    print(f"  Description: {param['description']}")
+                    print(f"  Label: {param['label']}")
+                    print(f"  Info Text: {param['infoText']}")
+                    print(f"  Options: {param['options']}")
+                    print("")
+
+                print("Optional parameters:")
+                for param in param_dict['optional']:
+                    print(f"- {param['name']} ({param['type']}): Optional")
+                    print(f"  Description: {param['description']}")
+                    print(f"  Label: {param['label']}")
+                    print(f"  Info Text: {param['infoText']}")
+                    print(f"  Options: {param['options']}")
+                    print("")
+
+            return param_dict
+
+    return None
+
+def generateExtendColumnGuide(idExtender):
+    """
+    Generates a user guide for calling the extendColumn function with the specified extender.
+
+    :param idExtender: the ID of the extender service
+    :return: a string containing the user guide
+    """
+    parameters_info = getExtenderParameters(idExtender, print_params=False)
+    
+    if not parameters_info:
+        return f"Failed to retrieve parameters for extender '{idExtender}'."
+    
+    guide = []
+    
+    guide.append("To call the extendColumn function, use the following template:")
+    guide.append("")
+    guide.append("```python")
+    guide.append("update_payload = Reconciled_data['raw']  # Your reconciled data")
+    guide.append('reconciliatedColumnName = "City"  # The name of the reconciled column')
+    guide.append(f'idExtender = "{idExtender}"  # The ID of the extender to use')
+    guide.append("newColumnsName = [\"apparent_temperature_max\", \"apparent_temperature_min\", \"precipitation_sum\"]  # New columns names")
+    guide.append('dateColumnName = "Fecha_id"  # Column name for the date')
+    guide.append('weatherParams = ["apparent_temperature_max", "apparent_temperature_min", "precipitation_sum"]  # Weather parameters')
+    guide.append("")
+
+    # Add mandatory parameters
+    guide.append("# Mandatory parameters:")
+    guide.append("New_data = extendColumn(update_payload, reconciliatedColumnName, idExtender,")
+    for param in parameters_info['mandatory']:
+        guide.append(f"    {param['name']}={param['name']},  # {param['description']}")
+    guide.append(")")
+
+    # Add optional parameters
+    if parameters_info['optional']:
+        guide.append("")
+        guide.append("# Optional parameters (add as needed):")
+        for param in parameters_info['optional']:
+            guide.append(f"{param['name']} = ...  # {param['description']}")
+
+    guide.append("```")
+    
+    return "\n".join(guide)
+
+def generateReconcileGuide(idReconciliator):
+    """
+    Generates a user guide for calling the reconcile function with the specified reconciliator.
+
+    :param idReconciliator: the ID of the reconciliator service
+    :return: a string containing the user guide
+    """
+    parameters_info = getReconciliatorParameters(idReconciliator, print_params=False)
+    
+    if not parameters_info:
+        return f"Failed to retrieve parameters for reconciliator '{idReconciliator}'."
+    
+    guide = []
+    
+    guide.append("To call the reconcile function, use the following template:")
+    guide.append("")
+    guide.append("```python")
+    guide.append("table = table_json  # Your table data in JSON format")
+    guide.append('columnName = "City"  # The name of the column to reconcile')
+    guide.append(f'idReconciliator = "{idReconciliator}"  # The ID of the reconciliator to use')
+    guide.append("")
+    
+    # Add mandatory parameters
+    for param in parameters_info['mandatory']:
+        guide.append(f'# {param["description"]}')
+        guide.append(f'{param["name"]} = ...  # Define your {param["type"]} here')
+        guide.append("")
+    
+    # Add optional parameters
+    if parameters_info['optional']:
+        guide.append("# Optional parameters:")
+        for param in parameters_info['optional']:
+            guide.append(f'# {param["description"]}')
+            guide.append(f'{param["name"]} = ...  # Define your {param["type"]} here (optional)')
+            guide.append("")
+    
+    # Add the function call
+    guide.append("Reconciled_data = reconcile(table, columnName, idReconciliator")
+    if parameters_info['optional']:
+        for param in parameters_info['optional']:
+            guide.append(f'    {param["name"]}={param["name"]},')
+    guide.append(")")
+    guide.append("```")
+    
+    return "\n".join(guide)
+
 def extract_georeference_data(reconciled_data):
     columns_data = reconciled_data['raw']['columns']
     rows_data = reconciled_data['raw']['rows']
@@ -436,50 +705,53 @@ def extract_city_reconciliation_metrics(data):
         'Standard Deviation of Scores': std_dev_score
     }
 
-def extendColumn(table, reconciliatedColumnName, idExtender, properties, newColumnsName, dateColumnName):
+def extendColumn(table, reconciliatedColumnName, idExtender, properties, newColumnsName, dateColumnName, weatherParams, decimalFormat=None):
     """
-    Allows extending specified properties present in the Knowledge Graph as a new column.
+    Extends the specified properties present in the Knowledge Graph as new columns.
 
     :param table: the table containing the data
     :param reconciliatedColumnName: the column containing the ID in the KG
     :param idExtender: the extender to use for extension
     :param properties: the properties to extend in the table
-    :param newColumnsName: the name of the new columns to add
+    :param newColumnsName: the names of the new columns to add
     :param dateColumnName: the name of the date column to extract date information for each row
+    :param weatherParams: a list of weather parameters to include in the request
     :return: the extended table
     """
+    reconciliatorResponse = getReconciliatorData()
+    extenderData = getExtender(idExtender, getExtenderData())
+    
+    if extenderData is None:
+        raise ValueError(f"Extender with ID '{idExtender}' not found.")
+    
+    url = API_URL + "extenders/" + extenderData['relativeUrl']
+    
     # Prepare the dates information dynamically
     dates = {}
     for row_key, row_data in table['rows'].items():
-        # Safely extract date_value from the label key of the date column
         date_value = row_data['cells'].get(dateColumnName, {}).get('label')
-        
         if date_value:
             dates[row_key] = [date_value]
         else:
             print(f"Missing or invalid date for row {row_key}, skipping this row.")
             continue  # Optionally skip this row or handle accordingly
-
-    reconciliatorResponse = getReconciliatorData()
-    extenderData = getExtender(idExtender, getExtenderData())
-    url = API_URL + "extenders/" + extenderData['relativeUrl']
-    payload = createExtensionPayload(table, reconciliatedColumnName, properties, idExtender, dates)
+    decimalFormat = ["comma"]  # Use comma as the decimal separator
+    payload = createExtensionPayload(table, reconciliatedColumnName, properties, idExtender, dates, weatherParams, decimalFormat)
+    #payload = createExtensionPayload(table, reconciliatedColumnName, properties, idExtender, dates, weatherParams)
     headers = {"Accept": "application/json"}
+
     try:
         response = requests.post(url, json=payload, headers=headers)
-        print(f"HTTP Status Code: {response.status_code}")
-        print(f"HTTP Response Text: '{response.text}'")
         response.raise_for_status()
         data = response.json()
         table = addExtendedColumns(table, data, newColumnsName, reconciliatorResponse)
         return table
     except requests.RequestException as e:
-        print(f"Network-related error occurred: {e}")
+        print(f"An error occurred while making the request: {e}")
     except json.JSONDecodeError as e:
-        print("Error parsing JSON response:", e)
-        print("Raw response for debugging:", response.text)
-    except KeyError as e:
-        print(f"Missing expected key in data:", e)
+        print(f"Error decoding JSON response: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 def create_reconciliation_payload_for_backend(table_json):
     """
@@ -509,6 +781,51 @@ def create_reconciliation_payload_for_backend(table_json):
         }
     }
     return payload
+
+def evaluate_reconciliation(data, reconciliatedColumnName):
+    """
+    Evaluates the reconciliation and extracts metrics from the metadata.
+
+    :param data: The table containing the data
+    :param reconciliatedColumnName: The column containing the reconciled data
+    :return: A DataFrame with extracted metrics
+    """
+    metrics = []
+
+    # Iterate through each row
+    for row_id, row_data in data['rows'].items():
+        row_dict = {'row_id': row_id}
+
+        # Iterate through each cell in the row
+        for cell_id, cell_data in row_data['cells'].items():
+            metadata_list = cell_data.get('metadata', [])
+            
+            if metadata_list:
+                for metadata in metadata_list:
+                    if metadata.get('match'):
+                        row_dict[f'{cell_id}_score'] = metadata.get('score', None)
+                        row_dict[f'{cell_id}_type'] = [t['name'] for t in metadata.get('type', [])]
+                        row_dict[f'{cell_id}_features'] = metadata.get('feature', [])
+        
+        metrics.append(row_dict)
+
+    # Create a DataFrame from the metrics
+    metrics_df = pd.DataFrame(metrics)
+
+    return metrics_df
+
+def extract_nested_values_reconciliation(df, column, new_columns):
+    """
+    Extracts nested values from a column in the DataFrame and adds them as new columns.
+
+    :param df: The original DataFrame
+    :param column: The column containing the nested values
+    :param new_columns: The names of the new columns to add
+    :return: The updated DataFrame with the new columns
+    """
+    df[new_columns[0]] = df[column].apply(lambda x: x.get('value') if isinstance(x, dict) else None)
+    df[new_columns[1]] = df[column].apply(lambda x: x.get('uri') if isinstance(x, dict) else None)
+    return df
 
 def create_extension_payload_for_backend(table_json):
     payload = {

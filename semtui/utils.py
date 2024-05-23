@@ -149,37 +149,6 @@ class FileSaver:
             print(f"Failed to save data to '{self.file_path}': {str(e)}")
             raise
 
-def process_data(df, date_col=None, lowercase_col=None, dropna=False, column_rename_dict=None, dtype_dict=None, new_column_order=None):
-    # If a date column is specified, convert it to ISO format
-    if date_col:
-        df[date_col] = pd.to_datetime(df[date_col], format='%Y%m%d')
-        df[date_col] = df[date_col].dt.strftime('%Y-%m-%d')
-
-    # If a column for lowercase conversion is specified, convert it
-    if lowercase_col:
-        df[lowercase_col] = df[lowercase_col].str.lower()
-
-    # If dropna is True, drop null values
-    if dropna:
-        df.dropna(inplace=True)
-
-    # Rename columns if column_rename_dict is provided
-    if column_rename_dict:
-        df = df.rename(columns=column_rename_dict)
-
-    # Convert data types if dtype_dict is provided
-    if dtype_dict:
-        for col, dtype in dtype_dict.items():
-            df[col] = df[col].astype(dtype)
-
-    # Reorder columns if new_column_order is provided
-    if new_column_order:
-        df = df[new_column_order]
-
-    # Add more transformations as needed
-
-    return df
-
 def create_zip_file(df, zip_filename):
     """
     Creates a zip file containing a CSV file from the given DataFrame.
@@ -684,7 +653,7 @@ def getExtender(idExtender, response):
             }
     return None
 
-def createExtensionPayload(data, reconciliatedColumnName, properties, idExtender, dates=None):
+def createExtensionPayload(data, reconciliatedColumnName, properties, idExtender, dates, weatherParams, decimalFormat=None):
     """
     Creates the payload for the extension request
 
@@ -692,7 +661,9 @@ def createExtensionPayload(data, reconciliatedColumnName, properties, idExtender
     :param reconciliatedColumnName: the name of the column containing reconciled id
     :param properties: the properties to use in a list format
     :param idExtender: the ID of the extender service
-    :param dates: (optional) a dictionary containing date information for each row (specific to openMeteoExtender)
+    :param dates: a dictionary containing the date information for each row
+    :param weatherParams: a list of weather parameters to include in the request
+    :param decimalFormat: the decimal format to use for the values (default: None)
     :return: the request payload
     """
     items = {}
@@ -714,15 +685,11 @@ def createExtensionPayload(data, reconciliatedColumnName, properties, idExtender
         "items": {
             str(reconciliatedColumnName): items
         },
-        "property": properties
+        "property": properties,
+        "dates": dates,
+        "weatherParams": weatherParams,
+        "decimalFormat": decimalFormat or []
     }
-    
-    if idExtender == "openMeteoExtender":
-        if dates is None:
-            raise ValueError("The 'dates' parameter is required for the openMeteoExtender.")
-        payload["dates"] = dates
-        payload["weatherParams"] = properties  # This can be customized if needed
-        payload["decimalFormat"] = []  # This can be customized or set externally if needed
     
     return payload
 
@@ -853,22 +820,6 @@ def parseNameMetadata(metadata, uriReconciliator):
             raise KeyError("Expected 'entity' key in each metadata item")
 
     return metadata
-
-def addExtendedColumns(table, extensionData, newColumnsName, reconciliatorResponse):
-    if 'columns' not in extensionData or 'meta' not in extensionData:
-        raise ValueError("extensionData must contain 'columns' and 'meta'")
-
-    for i, columnKey in enumerate(extensionData['columns'].keys()):
-        if i >= len(newColumnsName):
-            raise IndexError("There are more columns to add than names provided.")
-        
-        idReconciliator = getColumnIdReconciliator(
-            table, extensionData['meta'][columnKey], reconciliatorResponse)
-        
-        table = addExtendedCell(
-            table, extensionData['columns'][columnKey], newColumnsName[i], idReconciliator, reconciliatorResponse)
-        
-    return table
 
 def update_table(dataset_id, table_name, update_payload, token_manager):
     """

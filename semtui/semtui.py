@@ -782,6 +782,48 @@ def create_reconciliation_payload_for_backend(table_json):
     }
     return payload
 
+def reconciled_table_update(token_manager, dataset_id, table_id, Reconciled_data):
+    """
+    Updates a table in the dataset with reconciled data.
+
+    :param dataset_id: The ID of the dataset containing the table.
+    :param table_id: The ID of the table to update.
+    :return: A message indicating the status of the update operation.
+    """
+    # API configuration
+    API_URL = "http://localhost:3003/api/"
+    DATASETS_ENDPOINT = "dataset/"
+    
+    headers = {
+        'Authorization': f'Bearer {token_manager.get_token()}',
+        'Content-Type': 'application/json'
+    }
+
+    url = f"{API_URL}{DATASETS_ENDPOINT}{dataset_id}/table/{table_id}"
+
+    # Create the update payload
+    update_payload = create_reconciliation_payload_for_backend(Reconciled_data)
+
+    try:
+        # Send the PUT request to update the table
+        response = requests.put(url, headers=headers, json=update_payload)
+
+        if response.status_code == 200:
+            message = "Table updated successfully!"
+            response_data = response.json()
+            message += f"\nResponse data: {response_data}"
+        elif response.status_code == 401:
+            message = "Unauthorized: Invalid or missing token."
+        elif response.status_code == 404:
+            message = f"Dataset or table with ID {dataset_id}/{table_id} not found."
+        else:
+            message = f"Failed to update table: {response.status_code}, {response.text}"
+
+        return message
+
+    except requests.exceptions.RequestException as e:
+        return f"Error occurred while updating table: {e}"
+
 def evaluate_reconciliation(data, reconciliatedColumnName):
     """
     Evaluates the reconciliation and extracts metrics from the metadata.

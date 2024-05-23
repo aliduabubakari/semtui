@@ -855,7 +855,7 @@ def evaluate_reconciliation(data, reconciliatedColumnName):
 
     return metrics_df
 
-def extend_Reconciliation_Results(data, reconciliatedColumnName, properties, newColumnsName):
+def extend_Reconciliation_Results(json, reconciliatedColumnName, properties, newColumnsName):
     """
     Extends the reconciled column by creating new columns for each property in the metadata.
 

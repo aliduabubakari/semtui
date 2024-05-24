@@ -26,8 +26,7 @@ from .semtui import (
     evaluate_reconciliation,
     extract_nested_values_reconciliation,
     extend_Reconciliation_Results, 
-    reconciled_table_update, 
-    create_extension_payload_for_backend,
+    push_reconciliation_data_to_backend, 
     load_json_to_dataframe
 )
 
@@ -39,7 +38,6 @@ from .utils import (
     create_temp_csv,
     get_dataset_tables,
     get_table,
-    get_dataset_tables,
     getReconciliatorData,
     cleanServiceList,
     getExtenderData,
@@ -108,7 +106,6 @@ __all__ = [
     'create_temp_csv',
     'get_dataset_tables',
     'get_table',
-    'get_dataset_tables',
     'getReconciliatorData',
     'cleanServiceList',
     'getExtenderData',
@@ -140,8 +137,8 @@ __all__ = [
     'addExtendedColumns',
     'parseNameMetadata',
     'update_table',
-    'extend_Reconciliation_Results',  # Ensure this line is present in __all__
-    'reconciled_table_update'  # Ensure this line is also present in __all__
+    'extend_Reconciliation_Results',
+    'push_reconciliation_data_to_backend'
 ]
 
 # Optional: Initialize anything that needs to be set up when the package is loaded

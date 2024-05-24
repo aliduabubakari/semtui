@@ -5,7 +5,7 @@ import zipfile
 import requests
 import json
 import pandas as pd
-
+import numpy as np
 
 from .utils import (
     TokenManager,
@@ -752,6 +752,7 @@ def extendColumn(table, reconciliatedColumnName, idExtender, properties, newColu
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
+
 def create_reconciliation_payload_for_backend(table_json):
     """
     Creates the payload required to perform the table update operation
@@ -781,24 +782,26 @@ def create_reconciliation_payload_for_backend(table_json):
     }
     return payload
 
-def reconciled_table_update(token_manager, dataset_id, table_id, Reconciled_data):
+def push_reconciliation_data_to_backend(token_manager, dataset_id, table_id, Reconciled_data, api_url= API_URL):
     """
-    Updates a table in the dataset with reconciled data.
+    Pushes reconciliation data to the backend.
 
-    :param dataset_id: The ID of the dataset containing the table.
-    :param table_id: The ID of the table to update.
-    :return: A message indicating the status of the update operation.
+    :param token_manager: Instance of TokenManager to handle authentication tokens
+    :param dataset_id: ID of the dataset
+    :param table_id: ID of the table
+    :param Reconciled_data: Reconciled data to be sent
+    :param api_url: Base URL of the API
+    :return: Response from the backend
     """
-    # API configuration
-    API_URL = "http://localhost:3003/api/"
-    DATASETS_ENDPOINT = "dataset/"
-    
+    # Get the token
+    token = token_manager.get_token()
     headers = {
-        'Authorization': f'Bearer {token_manager.get_token()}',
+        'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'
     }
 
-    url = f"{API_URL}{DATASETS_ENDPOINT}{dataset_id}/table/{table_id}"
+    # Create the endpoint URL
+    url = f"{api_url}dataset/{dataset_id}/table/{table_id}"
 
     # Create the update payload
     update_payload = create_reconciliation_payload_for_backend(Reconciled_data)
@@ -806,23 +809,20 @@ def reconciled_table_update(token_manager, dataset_id, table_id, Reconciled_data
     try:
         # Send the PUT request to update the table
         response = requests.put(url, headers=headers, json=update_payload)
-
+        
         if response.status_code == 200:
-            message = "Table updated successfully!"
-            response_data = response.json()
-            message += f"\nResponse data: {response_data}"
+            print("Table updated successfully!")
+            return response.json()
         elif response.status_code == 401:
-            message = "Unauthorized: Invalid or missing token."
+            print("Unauthorized: Invalid or missing token.")
         elif response.status_code == 404:
-            message = f"Dataset or table with ID {dataset_id}/{table_id} not found."
+            print(f"Dataset or table with ID {dataset_id}/{table_id} not found.")
         else:
-            message = f"Failed to update table: {response.status_code}, {response.text}"
-
-        return message
-
+            print(f"Failed to update table: {response.status_code}, {response.text}")
     except requests.exceptions.RequestException as e:
-        return f"Error occurred while updating table: {e}"
-
+        print(f"Error occurred while updating table: {e}")
+        return None
+    
 def evaluate_reconciliation(data, reconciliatedColumnName):
     """
     Evaluates the reconciliation and extracts metrics from the metadata.
@@ -912,57 +912,33 @@ def extract_nested_values_reconciliation(df, column, new_columns):
     df[new_columns[1]] = df[column].apply(lambda x: x.get('uri') if isinstance(x, dict) else None)
     return df
 
-def create_extension_payload_for_backend(table_json):
+def create_reconciliation_payload_for_backend(table_json):
+    """
+    Creates the payload required to perform the table update operation.
+
+    :param table_json: JSON representation of the table
+    :return: request payload
+    """
     payload = {
         "tableInstance": {
-            "id": table_json["table"]["id"],
-            "idDataset": table_json["table"]["idDataset"],
-            "name": table_json["table"]["name"],
-            "nCols": table_json["table"]["nCols"],
-            "nRows": table_json["table"]["nRows"],
-            "nCells": table_json["table"]["nCells"],
-            "nCellsReconciliated": table_json["table"]["nCellsReconciliated"],
-            "lastModifiedDate": table_json["table"]["lastModifiedDate"],
-            "minMetaScore": table_json["table"]["minMetaScore"],
-            "maxMetaScore": table_json["table"]["maxMetaScore"]
+            "id": table_json["raw"]["table"]["id"],
+            "idDataset": table_json["raw"]["table"]["idDataset"],
+            "name": table_json["raw"]["table"]["name"],
+            "nCols": table_json["raw"]["table"]["nCols"],
+            "nRows": table_json["raw"]["table"]["nRows"],
+            "nCells": table_json["raw"]["table"]["nCells"],
+            "nCellsReconciliated": table_json["raw"]["table"]["nCellsReconciliated"],
+            "lastModifiedDate": table_json["raw"]["table"]["lastModifiedDate"]
         },
         "columns": {
-            "byId": {},
-            "allIds": []
+            "byId": table_json["raw"]["columns"],
+            "allIds": list(table_json["raw"]["columns"].keys())
         },
         "rows": {
-            "byId": {},
-            "allIds": []
+            "byId": table_json["raw"]["rows"],
+            "allIds": list(table_json["raw"]["rows"].keys())
         }
     }
-
-    # Process columns
-    for column_id, column_data in table_json["columns"].items():
-        payload["columns"]["byId"][column_id] = {
-            "id": column_data["id"],
-            "label": column_data["label"],
-            "status": column_data.get("status", ""),
-            "context": column_data.get("context", {}),
-            "metadata": column_data.get("metadata", []),
-            "annotationMeta": column_data.get("annotationMeta", {})
-        }
-        payload["columns"]["allIds"].append(column_id)
-
-    # Process rows
-    for row_id, row_data in table_json["rows"].items():
-        payload["rows"]["byId"][row_id] = {
-            "id": row_data["id"],
-            "cells": {}
-        }
-        for cell_id, cell_data in row_data["cells"].items():
-            payload["rows"]["byId"][row_id]["cells"][cell_id] = {
-                "id": cell_data["id"],
-                "label": cell_data.get("label", ""),
-                "metadata": cell_data.get("metadata", []),
-                "annotationMeta": cell_data.get("annotationMeta", {})
-            }
-        payload["rows"]["allIds"].append(row_id)
-
     return payload
 
 def load_json_to_dataframe(data):

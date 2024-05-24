@@ -752,10 +752,9 @@ def extendColumn(table, reconciliatedColumnName, idExtender, properties, newColu
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
-
 def create_reconciliation_payload_for_backend(table_json):
     """
-    Creates the payload required to perform the table update operation
+    Creates the payload required to perform the table update operation.
 
     :param table_json: JSON representation of the table
     :return: request payload
@@ -911,35 +910,6 @@ def extract_nested_values_reconciliation(df, column, new_columns):
     df[new_columns[0]] = df[column].apply(lambda x: x.get('value') if isinstance(x, dict) else None)
     df[new_columns[1]] = df[column].apply(lambda x: x.get('uri') if isinstance(x, dict) else None)
     return df
-
-def create_reconciliation_payload_for_backend(table_json):
-    """
-    Creates the payload required to perform the table update operation.
-
-    :param table_json: JSON representation of the table
-    :return: request payload
-    """
-    payload = {
-        "tableInstance": {
-            "id": table_json["raw"]["table"]["id"],
-            "idDataset": table_json["raw"]["table"]["idDataset"],
-            "name": table_json["raw"]["table"]["name"],
-            "nCols": table_json["raw"]["table"]["nCols"],
-            "nRows": table_json["raw"]["table"]["nRows"],
-            "nCells": table_json["raw"]["table"]["nCells"],
-            "nCellsReconciliated": table_json["raw"]["table"]["nCellsReconciliated"],
-            "lastModifiedDate": table_json["raw"]["table"]["lastModifiedDate"]
-        },
-        "columns": {
-            "byId": table_json["raw"]["columns"],
-            "allIds": list(table_json["raw"]["columns"].keys())
-        },
-        "rows": {
-            "byId": table_json["raw"]["rows"],
-            "allIds": list(table_json["raw"]["rows"].keys())
-        }
-    }
-    return payload
 
 def load_json_to_dataframe(data):
     """

@@ -1,0 +1,19 @@
+Metadata-Version: 2.1
+Name: semtui
+Version: 0.1.1
+Summary: A utility package for Semantic Enrichment of Tables
+Home-page: https://github.com/aliduabubakari/semtui
+Author: Alidu Abubakari
+Author-email: a.abubakari@campus.unimib.it
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown
+Requires-Dist: pandas
+Requires-Dist: chardet
+Requires-Dist: requests
+
+# SEMTUI Refactored
+
+This project contains the refactored code for SEMTUI.

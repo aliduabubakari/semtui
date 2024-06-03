@@ -102,12 +102,10 @@ class ExtensionManager:
                 str(reconciliated_column_name): items
             },
             "property": properties,
+            "dates": dates or {},
             "weatherParams": weather_params,
             "decimalFormat": decimal_format or []
         }
-        
-        if dates:
-            payload["dates"] = dates
         
         return payload
 

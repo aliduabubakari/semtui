@@ -67,7 +67,7 @@ class ExtensionManager:
             reconciliator["id"], reconciliator["relativeUrl"], reconciliator["name"]]
         return reconciliators
 
-    def create_extension_payload(self, data, reconciliated_column_name, properties, id_extender, dates, weather_params, decimal_format=None):
+    def create_extension_payload(self, data, reconciliated_column_name, properties, id_extender, dates, decimal_format=None):
         """
         Creates the payload for the extension request
 
@@ -76,7 +76,6 @@ class ExtensionManager:
         :param properties: the properties to use in a list format
         :param id_extender: the ID of the extender service
         :param dates: a dictionary containing the date information for each row
-        :param weather_params: a list of weather parameters to include in the request
         :param decimal_format: the decimal format to use for the values (default: None)
         :return: the request payload
         """
@@ -94,6 +93,9 @@ class ExtensionManager:
                     if metadata.get('match') == True:
                         items[row] = metadata.get('id')
                         break    
+        
+        weather_params = properties if id_extender == "meteoPropertiesOpenMeteo" else []
+        
         payload = {
             "serviceId": id_extender,
             "items": {
@@ -106,7 +108,7 @@ class ExtensionManager:
         }
         
         return payload
-
+    
     def get_reconciliator_from_prefix(self, prefix_reconciliator, response):
         """
         Function that, given the reconciliator's prefix, returns a dictionary 
@@ -244,11 +246,8 @@ class ExtensionManager:
                 print(f"Missing or invalid date for row {row_key}, skipping this row.")
                 continue  # Optionally skip this row or handle accordingly
         
-        # Set weather_params to properties if id_extender is meteoPropertiesOpenMeteo
-        weather_params = properties if id_extender == "meteoPropertiesOpenMeteo" else []
-
         decimal_format = decimal_format or ["comma"]  # Use comma as the decimal separator if not specified
-        payload = self.create_extension_payload(table, reconciliated_column_name, properties, id_extender, dates, weather_params, decimal_format)
+        payload = self.create_extension_payload(table, reconciliated_column_name, properties, id_extender, dates, decimal_format)
         headers = {"Accept": "application/json"}
 
         try:

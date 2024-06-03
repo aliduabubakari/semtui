@@ -244,12 +244,10 @@ class ExtensionManager:
                 print(f"Missing or invalid date for row {row_key}, skipping this row.")
                 continue  # Optionally skip this row or handle accordingly
         
-        if id_extender == "meteoPropertiesOpenMeteo":
-            weather_params = properties
-        else:
-            weather_params = []  # Set to an empty list or another value as needed
+        # Set weather_params to properties if id_extender is meteoPropertiesOpenMeteo
+        weather_params = properties if id_extender == "meteoPropertiesOpenMeteo" else []
 
-        decimal_format = ["comma"]  # Use comma as the decimal separator
+        decimal_format = decimal_format or ["comma"]  # Use comma as the decimal separator if not specified
         payload = self.create_extension_payload(table, reconciliated_column_name, properties, id_extender, dates, weather_params, decimal_format)
         headers = {"Accept": "application/json"}
 

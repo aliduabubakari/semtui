@@ -67,7 +67,7 @@ class ExtensionManager:
             reconciliator["id"], reconciliator["relativeUrl"], reconciliator["name"]]
         return reconciliators
 
-    def create_extension_payload(self, data, reconciliated_column_name, properties, id_extender, dates, decimal_format=None):
+    def create_extension_payload(self, data, reconciliated_column_name, properties, id_extender, dates=None, decimal_format=None):
         """
         Creates the payload for the extension request
 
@@ -75,7 +75,7 @@ class ExtensionManager:
         :param reconciliated_column_name: the name of the column containing reconciled id
         :param properties: the properties to use in a list format
         :param id_extender: the ID of the extender service
-        :param dates: a dictionary containing the date information for each row
+        :param dates: a dictionary containing the date information for each row (default: None)
         :param decimal_format: the decimal format to use for the values (default: None)
         :return: the request payload
         """
@@ -102,13 +102,15 @@ class ExtensionManager:
                 str(reconciliated_column_name): items
             },
             "property": properties,
-            "dates": dates,
             "weatherParams": weather_params,
             "decimalFormat": decimal_format or []
         }
         
+        if dates:
+            payload["dates"] = dates
+        
         return payload
-    
+
     def get_reconciliator_from_prefix(self, prefix_reconciliator, response):
         """
         Function that, given the reconciliator's prefix, returns a dictionary 
@@ -216,7 +218,7 @@ class ExtensionManager:
             
         return table
 
-    def extend_column(self, table, reconciliated_column_name, id_extender, properties, date_column_name, decimal_format=None):
+    def extend_column(self, table, reconciliated_column_name, id_extender, properties, date_column_name=None, decimal_format=None):
         """
         Extends the specified properties present in the Knowledge Graph as new columns.
 
@@ -224,7 +226,7 @@ class ExtensionManager:
         :param reconciliated_column_name: the column containing the ID in the KG
         :param id_extender: the extender to use for extension
         :param properties: the properties to extend in the table
-        :param date_column_name: the name of the date column to extract date information for each row
+        :param date_column_name: the name of the date column to extract date information for each row (default: None)
         :param decimal_format: the decimal format to use for the values (default: None)
         :return: the extended table
         """
@@ -236,15 +238,16 @@ class ExtensionManager:
         
         url = self.api_url + "extenders/" + extender_data['relativeUrl']
         
-        # Prepare the dates information dynamically
+        # Prepare the dates information dynamically if date_column_name is provided
         dates = {}
-        for row_key, row_data in table['rows'].items():
-            date_value = row_data['cells'].get(date_column_name, {}).get('label')
-            if date_value:
-                dates[row_key] = [date_value]
-            else:
-                print(f"Missing or invalid date for row {row_key}, skipping this row.")
-                continue  # Optionally skip this row or handle accordingly
+        if date_column_name:
+            for row_key, row_data in table['rows'].items():
+                date_value = row_data['cells'].get(date_column_name, {}).get('label')
+                if date_value:
+                    dates[row_key] = [date_value]
+                else:
+                    print(f"Missing or invalid date for row {row_key}, skipping this row.")
+                    continue  # Optionally skip this row or handle accordingly
         
         decimal_format = decimal_format or ["comma"]  # Use comma as the decimal separator if not specified
         payload = self.create_extension_payload(table, reconciliated_column_name, properties, id_extender, dates, decimal_format)
@@ -262,7 +265,7 @@ class ExtensionManager:
             print(f"Error decoding JSON response: {e}")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
-
+    
     def get_extender_parameters(self, id_extender, print_params=False):
         """
         Retrieves the parameters needed for a specific extender service.
